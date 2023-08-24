@@ -2,92 +2,67 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define STACK_SIZE 1024
+#define STACK_SIZE 100
 
-/* Define the stack structure */
-typedef struct Stack {
-    int data[STACK_SIZE];
-    int top;
-} Stack;
+int stack[STACK_SIZE];
+int top = -1; // Initialize the stack pointer to -1 (empty stack)
 
-/* Initialize a new stack */
-void initStack(Stack *stack) {
-    stack->top = -1;
-}
-
-/* Push an element onto the stack */
-void push(Stack *stack, int value) {
-    if (stack->top < STACK_SIZE - 1) {
-        stack->data[++stack->top] = value;
-    } else {
-        fprintf(stderr, "Error: Stack overflow\n");
+void push(int value) {
+    if (top >= STACK_SIZE - 1) {
+        fprintf(stderr, "L%d: can't push, stack overflow\n", line_number);
         exit(EXIT_FAILURE);
     }
+    top++;
+    stack[top] = value;
 }
 
-/* Pop an element from the stack */
-int pop(Stack *stack) {
-    if (stack->top >= 0) {
-        return stack->data[stack->top--];
-    } else {
-        fprintf(stderr, "Error: Stack underflow\n");
-        exit(EXIT_FAILURE);
-    }
-}
-
-/* Main interpreter function */
-void interpret(FILE *file) {
-    char line[256]; // Adjust the buffer size as needed
-    Stack stack;
-    initStack(&stack);
-
-    int line_number = 0;
-    while (fgets(line, sizeof(line), file) != NULL) {
-        line_number++;
-
-        // Tokenize the line into opcode and argument
-        char *opcode = strtok(line, " \n");
-        char *argument = strtok(NULL, " \n");
-
-        if (opcode == NULL)
-            continue; // Blank line
-
-        // Implement Monty instructions
-        if (strcmp(opcode, "push") == 0) {
-            if (argument == NULL) {
-                fprintf(stderr, "Error: Missing argument for push on line %d\n", line_number);
-                exit(EXIT_FAILURE);
-            }
-            int value = atoi(argument);
-            push(&stack, value);
-        } else if (strcmp(opcode, "pop") == 0) {
-            pop(&stack);
-        } else if (strcmp(opcode, "pall") == 0) {
-            // Print the entire stack
-            for (int i = 0; i <= stack.top; i++) {
-                printf("%d\n", stack.data[i]);
-            }
-        } else {
-            fprintf(stderr, "Error: Unknown instruction %s on line %d\n", opcode, line_number);
-            exit(EXIT_FAILURE);
-        }
+void pall() {
+    int i;
+    for (i = top; i >= 0; i--) {
+        printf("%d\n", stack[i]);
     }
 }
 
 int main(int argc, char *argv[]) {
     if (argc != 2) {
-        fprintf(stderr, "USAGE: monty file\n");
+        fprintf(stderr, "Usage: %s <file_name>\n", argv[0]);
         return EXIT_FAILURE;
     }
 
     FILE *file = fopen(argv[1], "r");
-    if (file == NULL) {
-        fprintf(stderr, "Error: Can't open file %s\n", argv[1]);
+    if (!file) {
+        perror("Error opening file");
         return EXIT_FAILURE;
     }
 
-    interpret(file);
+    char line[256];
+    int line_number = 0;
+
+    while (fgets(line, sizeof(line), file)) {
+        line_number++;
+
+        char *opcode = strtok(line, " \n");
+        if (opcode == NULL) {
+            continue; // Empty line, skip it
+        }
+
+        if (strcmp(opcode, "push") == 0) {
+            char *arg = strtok(NULL, " \n");
+            if (arg == NULL) {
+                fprintf(stderr, "L%d: usage: push integer\n", line_number);
+                return EXIT_FAILURE;
+            }
+
+            int value = atoi(arg);
+            push(value);
+        } else if (strcmp(opcode, "pall") == 0) {
+            pall();
+        } else {
+            fprintf(stderr, "L%d: unknown instruction %s\n", line_number, opcode);
+            return EXIT_FAILURE;
+        }
+    }
+
     fclose(file);
     return EXIT_SUCCESS;
 }
-
